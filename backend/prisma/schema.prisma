@@ -1,0 +1,182 @@
+// Prisma schema for multi-tenant MVP
+// NOTE: Run `npx prisma migrate dev` after setting DATABASE_URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  name         String
+  websiteUrl   String?
+  contactEmail String?
+  wpSiteUrl     String?
+  wpApiUser     String?
+  wpAppPassword String?
+  hostingExpirationDate     DateTime?
+  maintenanceExpirationDate DateTime?
+  hostingOrdered     Boolean @default(false)
+  maintenanceOrdered Boolean @default(false)
+  maintenancePlanName        String?
+  maintenanceHoursPerMonth   Float?
+  maintenanceCarryoverMode   String?
+  maintenanceStartDate       DateTime?
+  users        User[]
+  maintenanceCycles MaintenanceCycle[]
+  maintenanceTasks MaintenanceTask[]
+  maintenanceEntries MaintenanceTimeEntry[]
+  maintenanceFeatures TenantMaintenanceFeature[]
+  tickets     Ticket[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  email     String   @unique
+  password  String
+  role      String
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  ticketsCreated Ticket[]        @relation("TicketsCreatedBy")
+  ticketMessages TicketMessage[] @relation("TicketMessageAuthor")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MaintenanceCycle {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  month        String
+  baseHours    Float
+  carriedHours Float   @default(0)
+  usedHours    Float   @default(0)
+  status       String  @default("open")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  timeEntries MaintenanceTimeEntry[]
+
+  @@unique([tenantId, month])
+}
+
+model MaintenanceTask {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  title     String
+  type      String   @default("routine")
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  timeEntries MaintenanceTimeEntry[]
+}
+
+model MaintenanceTimeEntry {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  cycleId        String
+  cycle          MaintenanceCycle @relation(fields: [cycleId], references: [id])
+  taskId         String?
+  task           MaintenanceTask? @relation(fields: [taskId], references: [id])
+  date           DateTime
+  durationHours  Float
+  isIncludedInPlan Boolean @default(true)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model MaintenanceFeature {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenants TenantMaintenanceFeature[]
+}
+
+model TenantMaintenanceFeature {
+  id        String   @id @default(uuid())
+  tenantId  String
+  featureId String
+  createdAt DateTime @default(now())
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id])
+  feature MaintenanceFeature @relation(fields: [featureId], references: [id])
+
+  @@unique([tenantId, featureId])
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketType {
+  MAINTENANCE
+  CONTENT_UPDATE
+  BUG
+  BILLING
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum UserRole {
+  ADMIN
+  CLIENT
+}
+
+model Ticket {
+  id            String          @id @default(cuid())
+  tenantId      String
+  createdById   String
+  title         String
+  type          TicketType
+  status        TicketStatus    @default(OPEN)
+  priority      TicketPriority  @default(NORMAL)
+  lastMessageAt DateTime
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation("TicketsCreatedBy", fields: [createdById], references: [id])
+  messages  TicketMessage[]
+
+  @@index([tenantId, lastMessageAt])
+  @@index([createdById, lastMessageAt])
+}
+
+model TicketMessage {
+  id             String   @id @default(cuid())
+  ticketId       String
+  tenantId       String
+  authorId       String
+  authorRole     UserRole
+  body           String
+  isReadByClient Boolean  @default(false)
+  isReadByAdmin  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  author User   @relation("TicketMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@index([tenantId, createdAt])
+}

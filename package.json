@@ -1,0 +1,13 @@
+{
+  "name": "glorious-assistant",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "format:backend": "cd backend && npm run format",
+    "format:frontend": "cd frontend && npx prettier --write \"app/**/*.{ts,tsx}\" \"components/**/*.{ts,tsx}\""
+  }
+}
