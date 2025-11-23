@@ -288,7 +288,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-lg font-semibold text-foreground">Analytics</h2>
               <p className="text-sm text-muted-foreground">
-                Website analytics (powered by Google Analytics 4).
+                Website analytics.
               </p>
             </div>
             <div className="inline-flex rounded-md border border-border p-0.5 text-xs font-semibold">

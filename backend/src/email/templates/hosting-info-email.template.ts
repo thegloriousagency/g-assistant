@@ -11,6 +11,7 @@ interface HostingInfoEmailContent {
   emailQuotaMb: number | null;
   hostingExpirationDate?: Date | null;
   cpanelLoginUrl: string;
+  cpanelUsername?: string | null;
   passwordResetUrl?: string | null;
 }
 
@@ -102,6 +103,11 @@ export function buildHostingInfoEmail(
     )
     .join('');
 
+  const dashboardLink = `${process.env.APP_URL ?? 'http://localhost:3000'}/dashboard/hosting`;
+  const cpanelLink =
+    content.cpanelLoginUrl ??
+    'https://cpanel.theglorious.agency:2083/login/?login_only=1';
+
   const html = `<!DOCTYPE html>
 <html>
   <body style="font-family: Arial, sans-serif; color: #111; line-height: 1.5; margin: 0; padding: 24px; background-color:#f8f8f8;">
@@ -116,8 +122,17 @@ export function buildHostingInfoEmail(
           <p style="margin-bottom: 4px;"><strong>Coverage</strong></p>
           <p style="margin-top:0;">Paid through: ${hostingExpiration}</p>
           <p style="margin-bottom:16px;">
-            <a href="${content.cpanelLoginUrl}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:6px;">Login to cPanel</a>
+            <a href="${dashboardLink}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:6px;">Open dashboard</a>
           </p>
+          <p>
+            Experienced users can <a href="${cpanelLink}" style="color:#111;font-weight:600;">log in directly to cPanel</a>, but please proceed carefully—changes there affect your live site.
+          </p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:16px 0;">
+            <tr>
+              <td style="padding:8px 12px;border:1px solid #eee;font-weight:600;">cPanel username</td>
+              <td style="padding:8px 12px;border:1px solid #eee;">${content.cpanelUsername ?? 'Not provided'}</td>
+            </tr>
+          </table>
           <p>${passwordResetHtml}</p>
           <p style="margin-top:24px;">Let us know if you need anything else.<br />— The Glorious Agency Support Team</p>
         </td>
@@ -138,7 +153,9 @@ export function buildHostingInfoEmail(
     `Email accounts: ${formatCount(content.emailAccounts)}`,
     `Email quota: ${formatEmailQuota(content.emailQuotaMb)}`,
     `Paid through: ${hostingExpiration}`,
-    `Login to cPanel: ${content.cpanelLoginUrl}`,
+    `Dashboard: ${dashboardLink}`,
+    `cPanel (advanced users only): ${cpanelLink}`,
+    `cPanel username: ${content.cpanelUsername ?? 'Not provided'}`,
     passwordResetText,
     '',
     '— The Glorious Agency Support Team',

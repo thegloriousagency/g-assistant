@@ -88,7 +88,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col pb-20">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-3">
@@ -106,8 +106,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <span className="hidden sm:inline">Hi, {user.email}</span>
-                    <span className="sm:hidden">Hi there</span>
+                    <span className="hidden lg:inline">Hi, {user.email}</span>
+                    <span className="lg:hidden">Menu</span>
                     <ChevronDown className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -119,6 +119,64 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     {user.email}
                   </div>
                   <DropdownMenuSeparator />
+                  <div className="lg:hidden">
+                    <nav className="space-y-1">
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className="flex items-center gap-2">
+                          <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                          Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/analytics" className="flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                          Analytics
+                        </Link>
+                      </DropdownMenuItem>
+                      {!isAdmin && (
+                        <>
+                          <DropdownMenuItem asChild>
+                            <Link href="/dashboard/hosting" className="flex items-center gap-2">
+                              <Server className="h-4 w-4" aria-hidden="true" />
+                              Hosting
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/dashboard/maintenance" className="flex items-center gap-2">
+                              <Wrench className="h-4 w-4" aria-hidden="true" />
+                              Maintenance
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href="/dashboard/maintenance/tickets"
+                              className="flex items-center gap-2"
+                            >
+                              <LifeBuoy className="h-4 w-4" aria-hidden="true" />
+                              Support tickets
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {isAdmin && (
+                        <>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/tickets" className="flex items-center gap-2">
+                              <Ticket className="h-4 w-4" aria-hidden="true" />
+                              Admin tickets
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/tenants" className="flex items-center gap-2">
+                              <Users className="h-4 w-4" aria-hidden="true" />
+                              Tenants
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </nav>
+                    <DropdownMenuSeparator />
+                  </div>
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard/account" className="flex items-center gap-2">
                       <UserCircle className="h-4 w-4" aria-hidden="true" />

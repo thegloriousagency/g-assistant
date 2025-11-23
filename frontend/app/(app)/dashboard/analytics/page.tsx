@@ -56,7 +56,7 @@ export default function AnalyticsPage() {
           <p className="text-sm uppercase tracking-wide text-muted-foreground">Analytics</p>
           <h1 className="text-3xl font-semibold text-foreground">Traffic overview</h1>
           <p className="text-sm text-muted-foreground">
-            Monitor visitors, visits, and traffic sources from Google Analytics 4.
+            Monitor visitors, visits, and traffic sources.
           </p>
         </header>
 

@@ -7,6 +7,17 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCpanelSession, useHostingAccountSummary } from "@/hooks/useHosting";
 import { ApiError } from "@/lib/api-client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type StatusResult =
   | { state: "none" }
@@ -261,14 +272,30 @@ export default function HostingStatusPage() {
             )}
 
             <div className="pt-2">
-              <Button
-                type="button"
-                onClick={handleGoToCpanel}
-                className="bg-black text-white hover:bg-black/90 disabled:bg-muted disabled:text-muted-foreground"
-                disabled={cpanelSession.isPending || !hasHostingCredentials}
-              >
-                {cpanelSession.isPending ? "Connecting…" : "Go to cPanel"}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    className="bg-black text-white hover:bg-black/90 disabled:bg-muted disabled:text-muted-foreground"
+                    disabled={cpanelSession.isPending || !hasHostingCredentials}
+                  >
+                    {cpanelSession.isPending ? "Connecting…" : "Go to cPanel"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Proceed to cPanel?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      cPanel is intended for experienced users. Changes there impact your live site, email,
+                      and database. Continue only if you know what you’re doing.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleGoToCpanel}>Open cPanel</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               {!hasHostingCredentials && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Contact support to connect your hosting account.

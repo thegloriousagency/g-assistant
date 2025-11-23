@@ -39,19 +39,50 @@ export class EmailService {
 
   async sendWelcomeSetPasswordEmail(email: string, token: string) {
     const link = `${this.appUrl}/set-password?token=${encodeURIComponent(token)}`;
+    const html = `<!DOCTYPE html>
+<html>
+  <body style="font-family: Arial, sans-serif; color: #111; line-height: 1.5; margin: 0; padding: 24px; background-color:#f8f8f8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #eee;border-radius:12px;">
+      <tr>
+        <td style="padding:24px;">
+          <h2 style="margin-top:0;">Your Glorious Agency dashboard is ready</h2>
+          <p>Use your email <strong>${email}</strong> and the button below to set your password and sign in securely.</p>
+          <p style="margin:20px 0;">
+            <a href="${link}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:6px;">Create password</a>
+          </p>
+          <p style="font-size:13px;color:#555;">This secure link lets you create your login credentials.</p>
+          <p style="margin-top:24px;">Inside the dashboard you can review hosting details*, track website analytics, see monthly maintenance activity*, request updates, and manage support conversations in one place.</p>
+          <p>If you need any help, just reply to this email or message us from within the dashboard.</p>
+          <p style="margin-top:24px;">— The Glorious Agency Support Team</p>
+          <p style="font-size:12px;color:#555;margin-top:16px;">
+            *Feature availability depends on your active hosting or maintenance subscription with The Glorious Agency.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+    const text = [
+      'Your Glorious Agency dashboard is ready.',
+      `Set your password here: ${link}`,
+      '',
+      'From the dashboard you can:',
+      '- Review hosting details*, analytics, and maintenance activity*.',
+      '- Request updates or submit support messages in one place.',
+      '',
+      'Need help? Reply to this email or reach us through the dashboard.',
+      '',
+      '— The Glorious Agency Support Team',
+      '',
+      '*Feature availability depends on your active hosting or maintenance subscription.',
+    ].join('\n');
+
     return this.sendEmail({
       to: email,
-      subject: 'Welcome! Set your password',
-      html: this.wrapHtml(
-        'Welcome!',
-        `Set your password to access your dashboard.`,
-        link,
-        'Set password',
-      ),
-      text: this.textTemplate(
-        'Welcome to the Glorious Dashboard!',
-        `Set your password to log in: ${link}`,
-      ),
+      subject: 'Your Glorious Agency dashboard access',
+      html,
+      text,
     });
   }
 

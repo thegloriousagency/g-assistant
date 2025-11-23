@@ -15,6 +15,10 @@ import { EmailService } from '../email/email.service';
 import { HostingInfoEmailContent } from '../email/templates/hosting-info-email.template';
 import { Tenant, User } from '@prisma/client';
 
+const DEFAULT_CPANEL_LOGIN_URL =
+  process.env.CPANEL_LOGIN_URL ??
+  'https://cpanel.theglorious.agency:2083/login/?login_only=1';
+
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('admin/tenants/:tenantId/hosting')
 export class HostingAdminController {
@@ -42,9 +46,8 @@ export class HostingAdminController {
       );
     }
 
-    const [summary, loginUrl] = await Promise.all([
+    const [summary] = await Promise.all([
       this.whmService.fetchAccountSummary(tenant.hostingCpanelUsername),
-      this.whmService.createCpanelSession(tenant.hostingCpanelUsername),
     ]);
     const passwordResetUrl = this.whmService.getCpanelPasswordResetUrl();
 
@@ -60,7 +63,8 @@ export class HostingAdminController {
       emailAccounts: summary.emailAccounts,
       emailQuotaMb: summary.emailQuotaMb,
       hostingExpirationDate: tenant.hostingExpirationDate ?? null,
-      cpanelLoginUrl: loginUrl,
+      cpanelLoginUrl: DEFAULT_CPANEL_LOGIN_URL,
+      cpanelUsername: tenant.hostingCpanelUsername ?? undefined,
       passwordResetUrl,
     };
 
