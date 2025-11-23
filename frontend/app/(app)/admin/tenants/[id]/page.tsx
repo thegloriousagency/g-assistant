@@ -163,7 +163,7 @@ const optionalNumber = z.preprocess(
 
 const maintenancePlanSchema = z.object({
   maintenancePlanName: z.string().optional(),
-  maintenanceHoursPerMonth: optionalNumber,
+  maintenanceHoursPerMonth: optionalNumber.optional(),
   maintenanceCarryoverMode: z.enum(["carry", "none"]).optional(),
   maintenanceStartDate: z.string().optional(),
   maintenanceExpirationDate: z.string().optional(),
