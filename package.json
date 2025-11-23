@@ -6,6 +6,7 @@
     "frontend"
   ],
   "scripts": {
+    "postinstall": "npm run prisma:generate --workspace backend",
     "dev:backend": "cd backend && npm run start:dev",
     "dev:frontend": "cd frontend && npm run dev",
     "lint:backend": "cd backend && npm run lint",
