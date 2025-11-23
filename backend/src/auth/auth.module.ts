@@ -9,11 +9,13 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
     ConfigModule,
     UsersModule,
+    EmailModule,
     TenantsModule,
     PassportModule,
     JwtModule.registerAsync({

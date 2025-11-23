@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -38,8 +40,8 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "admin@local.test",
-      password: "Admin123!",
+      email: "",
+      password: "",
     },
   });
 
@@ -64,12 +66,16 @@ export default function LoginPage() {
   });
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4">
+      <Link href="/" className="mb-6 flex items-center gap-3 text-primary">
+        <Image src="/logo.svg" alt="The Glorious Agency" width={140} height={28} priority />
+        <span className="sr-only">The Glorious Agency Dashboard</span>
+      </Link>
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle>Sign in</CardTitle>
           <CardDescription>
-            Access your tenant workspace. Admins will see elevated controls later.
+            Manage your website, hosting, support, and analytics — all in one place.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -98,6 +104,14 @@ export default function LoginPage() {
                       <Input type="password" placeholder="********" {...field} />
                     </FormControl>
                     <FormMessage />
+                    <div className="flex justify-end">
+                      <Link
+                        href="/forgot-password"
+                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
                   </FormItem>
                 )}
               />

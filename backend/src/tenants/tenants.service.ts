@@ -13,11 +13,13 @@ export class TenantsService {
       hostingExpirationDate,
       maintenanceExpirationDate,
       maintenanceStartDate,
+      hostingCpanelUsername,
       ...rest
     } = data;
     return this.prisma.tenant.create({
       data: {
         ...rest,
+        hostingCpanelUsername: this.normalizeString(hostingCpanelUsername),
         hostingExpirationDate: this.transformDate(hostingExpirationDate),
         maintenanceExpirationDate: this.transformDate(maintenanceExpirationDate),
         maintenanceStartDate: this.transformDate(maintenanceStartDate),
@@ -56,12 +58,14 @@ export class TenantsService {
       hostingExpirationDate,
       maintenanceExpirationDate,
       maintenanceStartDate,
+      hostingCpanelUsername,
       ...rest
     } = data;
     return this.prisma.tenant.update({
       where: { id },
       data: {
         ...rest,
+        hostingCpanelUsername: this.normalizeString(hostingCpanelUsername),
         hostingExpirationDate: this.transformDate(hostingExpirationDate),
         maintenanceExpirationDate: this.transformDate(maintenanceExpirationDate),
         maintenanceStartDate: this.transformDate(maintenanceStartDate),
@@ -95,5 +99,16 @@ export class TenantsService {
       throw new BadRequestException('Invalid date provided');
     }
     return parsed;
+  }
+
+  private normalizeString(value?: string | null): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+    if (value === null) {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 }

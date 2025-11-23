@@ -20,5 +20,9 @@ frontend/out/
 # Prisma
 backend/prisma/*.db
 
+# Service account keys
+backend/keys/
+!backend/keys/.gitkeep
+
 # Misc
 .DS_Store

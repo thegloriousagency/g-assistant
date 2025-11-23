@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/hooks/useAuth";
+import { Toaster } from "sonner";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -19,6 +20,12 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Glorious Dashboard",
   description: "MVP SaaS dashboard powered by Next.js + NestJS",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -33,6 +40,7 @@ export default function RootLayout({
       >
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
+          <Toaster position="bottom-left" richColors />
         </QueryProvider>
       </body>
     </html>

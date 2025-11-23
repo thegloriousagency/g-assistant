@@ -3,7 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const ADMIN_EMAIL = process.env.ADMIN_SEED_EMAIL ?? 'admin@local.test';
+const ADMIN_EMAIL = process.env.ADMIN_SEED_EMAIL ?? 'max@theglorious.agency';
 const ADMIN_PASSWORD = process.env.ADMIN_SEED_PASSWORD ?? 'Admin123!';
 
 async function seedAdmin() {

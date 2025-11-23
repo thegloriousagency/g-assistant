@@ -28,6 +28,12 @@ interface Tenant {
   name: string;
   websiteUrl?: string | null;
   contactEmail?: string | null;
+  wpSiteUrl?: string | null;
+  wpApiUser?: string | null;
+  wpAppPassword?: string | null;
+  hostingExpirationDate?: string | null;
+  hostingCpanelUsername?: string | null;
+  hostingOrdered?: boolean | null;
   maintenancePlanName?: string | null;
   maintenanceHoursPerMonth?: number | null;
   maintenanceCarryoverMode?: string | null;

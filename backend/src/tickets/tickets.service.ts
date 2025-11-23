@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { TicketPriority, TicketStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -7,6 +12,7 @@ import { GetClientTicketsQueryDto } from './dto/get-client-tickets-query.dto';
 import { CreateAdminTicketDto } from './dto/create-admin-ticket.dto';
 import { GetAdminTicketsQueryDto } from './dto/get-admin-tickets-query.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
+import { EmailService } from '../email/email.service';
 
 type CurrentUser = {
   id: string;
@@ -14,12 +20,26 @@ type CurrentUser = {
   role: UserRole;
 };
 
+type TicketNotificationContext = {
+  id: string;
+  tenantId: string;
+  title: string;
+  lastEmailToAdminAt?: Date | null;
+  lastEmailToClientAt?: Date | null;
+};
+
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
+const NOTIFICATION_COOLDOWN_MINUTES = 60;
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(TicketsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   private resolvePagination(query?: { page?: number; pageSize?: number }) {
     const page = Math.max(1, query?.page ?? 1);
@@ -63,6 +83,8 @@ export class TicketsService {
 
       return ticket;
     });
+
+    await this.notifyAdminsOfTicketActivity(result, 'new-ticket', { force: true });
 
     return result;
   }
@@ -148,7 +170,7 @@ export class TicketsService {
     }
 
     const now = new Date();
-    return this.prisma.$transaction(async (tx) => {
+    const message = await this.prisma.$transaction(async (tx) => {
       const message = await tx.ticketMessage.create({
         data: {
           tenantId: ticket.tenantId,
@@ -168,6 +190,10 @@ export class TicketsService {
 
       return message;
     });
+
+    await this.notifyAdminsOfTicketActivity(ticket, 'client-reply');
+
+    return message;
   }
 
   async createTicketForAdmin(user: CurrentUser, dto: CreateAdminTicketDto) {
@@ -294,7 +320,7 @@ export class TicketsService {
     }
 
     const now = new Date();
-    return this.prisma.$transaction(async (tx) => {
+    const message = await this.prisma.$transaction(async (tx) => {
       const message = await tx.ticketMessage.create({
         data: {
           tenantId: ticket.tenantId,
@@ -320,13 +346,48 @@ export class TicketsService {
 
       return message;
     });
+
+    await this.notifyClientsOfTicketActivity(ticket, 'admin-reply');
+
+    return message;
   }
 
-  updateTicketStatus(ticketId: string, dto: UpdateTicketStatusDto) {
-    return this.prisma.ticket.update({
+  async updateTicketStatus(ticketId: string, dto: UpdateTicketStatusDto) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: {
+        id: true,
+        tenantId: true,
+        title: true,
+        lastEmailToAdminAt: true,
+        lastEmailToClientAt: true,
+      },
+    });
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const updated = await this.prisma.ticket.update({
       where: { id: ticketId },
       data: { status: dto.status },
+      select: {
+        id: true,
+        tenantId: true,
+        title: true,
+        lastEmailToAdminAt: true,
+        lastEmailToClientAt: true,
+        status: true,
+      },
     });
+
+    if (dto.status !== TicketStatus.OPEN && dto.status !== TicketStatus.IN_PROGRESS) {
+      await this.notifyClientsOfTicketActivity(updated, 'status-update', {
+        force: true,
+        statusLabel: this.formatTicketStatus(dto.status),
+      });
+    }
+
+    return updated;
   }
 
   private async markMessagesAsReadForClient(ticketId: string) {
@@ -379,5 +440,127 @@ export class TicketsService {
       select: { ticketId: true },
     });
     return new Set(unread.map((entry) => entry.ticketId));
+  }
+
+  private shouldSendEmail(lastSentAt: Date | null | undefined, now: Date) {
+    if (!lastSentAt) {
+      return true;
+    }
+    const diffMs = now.getTime() - lastSentAt.getTime();
+    const cooldownMs = NOTIFICATION_COOLDOWN_MINUTES * 60 * 1000;
+    return diffMs >= cooldownMs;
+  }
+
+  private async notifyAdminsOfTicketActivity(
+    ticket: TicketNotificationContext,
+    action: 'new-ticket' | 'client-reply',
+    options?: { force?: boolean },
+  ) {
+    const now = new Date();
+    if (!options?.force && !this.shouldSendEmail(ticket.lastEmailToAdminAt, now)) {
+      return;
+    }
+
+    const adminUsers = await this.prisma.user.findMany({
+      where: {
+        role: {
+          equals: UserRole.ADMIN.toLowerCase(),
+          mode: 'insensitive',
+        },
+      },
+      select: { email: true },
+    });
+    const recipients = adminUsers
+      .map((user) => user.email)
+      .filter((email) => Boolean(email));
+    if (recipients.length === 0) {
+      return;
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: ticket.tenantId },
+      select: { name: true },
+    });
+
+    await this.safeSendEmails(
+      recipients.map((email) =>
+        this.emailService.sendAdminTicketNotification({
+          to: email,
+          tenantName: tenant?.name ?? 'A tenant',
+          ticketTitle: ticket.title,
+          ticketId: ticket.id,
+          action,
+        }),
+      ),
+      'admin ticket notification',
+    );
+
+    await this.prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { lastEmailToAdminAt: now },
+    });
+  }
+
+  private async notifyClientsOfTicketActivity(
+    ticket: TicketNotificationContext,
+    action: 'admin-reply' | 'status-update',
+    options?: { force?: boolean; statusLabel?: string },
+  ) {
+    const now = new Date();
+    if (!options?.force && !this.shouldSendEmail(ticket.lastEmailToClientAt, now)) {
+      return;
+    }
+
+    const clientUsers = await this.prisma.user.findMany({
+      where: {
+        tenantId: ticket.tenantId,
+        role: {
+          equals: UserRole.CLIENT.toLowerCase(),
+          mode: 'insensitive',
+        },
+      },
+      select: { email: true },
+    });
+    const recipients = clientUsers
+      .map((user) => user.email)
+      .filter((email) => Boolean(email));
+    if (recipients.length === 0) {
+      return;
+    }
+
+    await this.safeSendEmails(
+      recipients.map((email) =>
+        this.emailService.sendClientTicketNotification({
+          to: email,
+          ticketTitle: ticket.title,
+          ticketId: ticket.id,
+          action,
+          statusLabel: options?.statusLabel,
+        }),
+      ),
+      'client ticket notification',
+    );
+
+    await this.prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { lastEmailToClientAt: now },
+    });
+  }
+
+  private async safeSendEmails(promises: Promise<boolean>[], context: string) {
+    try {
+      const results = await Promise.all(promises);
+      if (results.some((success) => !success)) {
+        this.logger.warn(`Some ${context} emails failed to send.`);
+      }
+    } catch (error) {
+      const err = error as Error;
+      this.logger.warn(`Failed to send ${context}: ${err?.message ?? 'unknown error'}`);
+    }
+  }
+
+  private formatTicketStatus(status: TicketStatus) {
+    const label = status.replace(/_/g, ' ').toLowerCase();
+    return label.replace(/\b\w/g, (char) => char.toUpperCase());
   }
 }

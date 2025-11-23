@@ -13,6 +13,9 @@ import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersService } from '../users/users.service';
 import { TenantsService } from '../tenants/tenants.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Throttle } from '@nestjs/throttler';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -30,10 +33,28 @@ export class AuthController {
     private readonly tenantsService: TenantsService,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @Post('login')
   async login(@Body() body: LoginDto) {
     const user = await this.authService.validateUser(body.email, body.password);
     return this.authService.login(user);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    await this.authService.requestPasswordReset(body.email);
+    return {
+      message:
+        'If that email exists in our system, you will receive password reset instructions shortly.',
+    };
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Post('reset-password')
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    await this.authService.resetPasswordWithToken(body.token, body.newPassword);
+    return { ok: true };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -69,6 +90,7 @@ export class AuthController {
             wpSiteUrl: tenant.wpSiteUrl,
             wpApiUser: tenant.wpApiUser,
             wpAppPassword: tenant.wpAppPassword,
+            hostingCpanelUsername: tenant.hostingCpanelUsername,
             hostingExpirationDate: tenant.hostingExpirationDate,
             maintenanceExpirationDate: tenant.maintenanceExpirationDate,
             hostingOrdered: tenant.hostingOrdered,

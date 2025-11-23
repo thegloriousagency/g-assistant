@@ -39,6 +39,10 @@ export class CreateTenantDto {
   hostingExpirationDate?: string;
 
   @IsOptional()
+  @IsString()
+  hostingCpanelUsername?: string;
+
+  @IsOptional()
   @IsISO8601()
   maintenanceExpirationDate?: string;
 
@@ -66,4 +70,8 @@ export class CreateTenantDto {
   @IsOptional()
   @IsISO8601()
   maintenanceStartDate?: string;
+
+  @IsOptional()
+  @IsString()
+  ga4PropertyId?: string;
 }

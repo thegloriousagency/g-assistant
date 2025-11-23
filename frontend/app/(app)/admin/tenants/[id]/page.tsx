@@ -12,8 +12,17 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -46,6 +55,7 @@ interface TenantDetail {
   wpApiUser?: string | null;
   wpAppPassword?: string | null;
   hostingExpirationDate?: string | null;
+  hostingCpanelUsername?: string | null;
   maintenanceExpirationDate?: string | null;
   hostingOrdered: boolean;
   maintenanceOrdered: boolean;
@@ -55,6 +65,9 @@ interface TenantDetail {
   maintenanceStartDate?: string | null;
   maintenanceExtraHourlyRate?: number | null;
   maintenanceNotesInternal?: string | null;
+  ga4PropertyId?: string | null;
+  ga4ConnectedAt?: string | null;
+  ga4LastSyncStatus?: string | null;
   users: TenantUser[];
 }
 
@@ -122,6 +135,11 @@ const wordpressSchema = z.object({
 const hostingSchema = z.object({
   hostingExpirationDate: z.string().or(z.literal("")).optional(),
   hostingOrdered: z.boolean().optional(),
+  hostingCpanelUsername: z
+    .string()
+    .max(255, "Username must be 255 characters or less")
+    .or(z.literal(""))
+    .optional(),
 });
 
 const createUserSchema = z.object({
@@ -199,6 +217,35 @@ function formatDurationHM(hoursFloat: number): string {
   return `${h}h ${m}m`;
 }
 
+function extractGa4NumericId(propertyId?: string | null) {
+  if (!propertyId) return "";
+  const match = propertyId.match(/properties\/(.+)/);
+  return match ? match[1] : propertyId;
+}
+
+function formatGa4Status(status?: string | null) {
+  if (!status) return "Not configured";
+  if (status === "ok") return "OK";
+  if (status === "error: permission_denied") return "Permission denied";
+  if (status === "error: property_not_found") return "Property not found";
+  if (status === "error: not_configured") return "Not configured";
+  if (status.startsWith("error:")) return status.replace("error:", "").trim();
+  return status;
+}
+
+function formatDateTime(iso?: string | null) {
+  if (!iso) return "Never";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Never";
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function TenantDetailPage() {
   const params = useParams<{ id: string }>();
   const tenantId = params?.id;
@@ -222,6 +269,12 @@ export default function TenantDetailPage() {
   const [newFeatureLabel, setNewFeatureLabel] = useState("");
   const [featureMessage, setFeatureMessage] = useState<string | null>(null);
   const [featureError, setFeatureError] = useState<string | null>(null);
+  const [ga4PropertyInput, setGa4PropertyInput] = useState("");
+  const [ga4SaveMessage, setGa4SaveMessage] = useState<string | null>(null);
+  const [ga4TestMessage, setGa4TestMessage] = useState<string | null>(null);
+  const [ga4TestSample, setGa4TestSample] = useState<{ users?: number; sessions?: number } | null>(
+    null,
+  );
 
   const {
     data,
@@ -340,6 +393,7 @@ export default function TenantDetailPage() {
     defaultValues: {
       hostingExpirationDate: "",
       hostingOrdered: false,
+    hostingCpanelUsername: "",
     },
   });
 
@@ -401,6 +455,7 @@ export default function TenantDetailPage() {
         ? data.hostingExpirationDate.slice(0, 10)
         : "",
       hostingOrdered: data.hostingOrdered ?? false,
+      hostingCpanelUsername: data.hostingCpanelUsername ?? "",
     });
     maintenancePlanForm.reset({
       maintenancePlanName: data.maintenancePlanName ?? "",
@@ -414,6 +469,8 @@ export default function TenantDetailPage() {
         : "",
       maintenanceOrdered: data.maintenanceOrdered ?? false,
     });
+    setGa4PropertyInput(extractGa4NumericId(data.ga4PropertyId));
+    setGa4SaveMessage(null);
   }, [data, basicInfoForm, wordpressForm, hostingForm, maintenancePlanForm]);
 
   useEffect(() => {
@@ -433,6 +490,56 @@ export default function TenantDetailPage() {
       ),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["admin", "tenants", tenantId] }),
+  });
+
+  const sendHostingEmailMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantId) {
+        throw new Error("Tenant not ready yet.");
+      }
+      return apiFetch<{ ok: true }>(
+        `/admin/tenants/${tenantId}/hosting/send-info-email`,
+        {
+          method: "POST",
+        },
+        true,
+      );
+    },
+    onSuccess: () => {
+      toast.success("Hosting info email sent.");
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to send hosting info email.";
+      toast.error(message);
+    },
+  });
+
+  const sendWelcomeEmailMutation = useMutation<{ ok: true }, unknown, string>({
+    mutationFn: (userId: string) =>
+      apiFetch<{ ok: true }>(
+        `/admin/users/${userId}/send-welcome`,
+        {
+          method: "POST",
+        },
+        true,
+      ),
+    onSuccess: () => {
+      toast.success("Welcome email sent.");
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Failed to send welcome email.";
+      toast.error(message);
+    },
   });
 
   const testConnectionMutation = useMutation({
@@ -458,6 +565,69 @@ export default function TenantDetailPage() {
       });
     },
   });
+
+  const ga4TestMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<{
+        ok: boolean;
+        message: string;
+        status: string;
+        sample?: { users?: number; sessions?: number };
+      }>(
+        `/ga4/admin/tenants/${tenantId}/test`,
+        {
+          method: "GET",
+        },
+        true,
+      ),
+    onSuccess: (result) => {
+      setGa4TestMessage(result.message);
+      setGa4TestSample(result.sample ?? null);
+      queryClient.invalidateQueries({ queryKey: ["admin", "tenants", tenantId] });
+    },
+    onError: (err) => {
+      const message =
+        err instanceof ApiError ? err.message : "Failed to test analytics connection.";
+      setGa4TestMessage(message);
+      setGa4TestSample(null);
+    },
+  });
+
+  const handleSaveGa4Property = () => {
+    if (!tenantId) return;
+    const trimmed = ga4PropertyInput.trim();
+    const payload =
+      trimmed.length === 0
+        ? { ga4PropertyId: null }
+        : {
+            ga4PropertyId: trimmed.startsWith("properties/")
+              ? trimmed
+              : `properties/${trimmed}`,
+          };
+    setGa4SaveMessage(null);
+    genericUpdateMutation.mutate(payload, {
+      onSuccess: () => {
+        setGa4SaveMessage("GA4 property ID saved.");
+        queryClient.invalidateQueries({ queryKey: ["admin", "tenants", tenantId] });
+      },
+      onError: (err) => {
+        const message =
+          err instanceof ApiError ? err.message : "Failed to save GA4 property.";
+        setGa4SaveMessage(message);
+      },
+    });
+  };
+
+  const handleTestGa4 = () => {
+    if (!data?.ga4PropertyId) {
+      setGa4TestMessage("Add a GA4 property ID before testing.");
+      setGa4TestSample(null);
+      return;
+    }
+    setGa4TestMessage(null);
+    setGa4TestSample(null);
+    ga4TestMutation.mutate();
+  };
 
   const addUserMutation = useMutation({
     mutationFn: (payload: CreateUserInput) =>
@@ -732,6 +902,7 @@ export default function TenantDetailPage() {
         ? values.hostingExpirationDate
         : null,
       hostingOrdered: Boolean(values.hostingOrdered),
+      hostingCpanelUsername: values.hostingCpanelUsername?.trim() ?? "",
     };
     genericUpdateMutation.mutate(payload, {
       onSuccess: () => setHostingMessage("Saved."),
@@ -789,6 +960,7 @@ export default function TenantDetailPage() {
                 <TabsTrigger value="hosting">Hosting</TabsTrigger>
                 <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
                 <TabsTrigger value="wordpress">WordPress</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 <TabsTrigger value="users">Users</TabsTrigger>
               </TabsList>
 
@@ -939,6 +1111,73 @@ export default function TenantDetailPage() {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="analytics" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Analytics (GA4)</CardTitle>
+                    <CardDescription>Configure Google Analytics 4 for this tenant.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      {data.ga4PropertyId ? (
+                        <p>
+                          Last status: <span className="text-foreground">{formatGa4Status(data.ga4LastSyncStatus)}</span> · Last
+                          checked: <span className="text-foreground">{formatDateTime(data.ga4ConnectedAt)}</span>
+                        </p>
+                      ) : (
+                        <p>Analytics not configured for this tenant.</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="ga4-property-id" className="text-sm font-medium text-foreground">
+                        GA4 Property ID
+                      </label>
+                      <Input
+                        id="ga4-property-id"
+                        value={ga4PropertyInput}
+                        onChange={(event) => {
+                          setGa4PropertyInput(event.target.value);
+                          setGa4SaveMessage(null);
+                        }}
+                        placeholder="123456789"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        You can find this in Google Analytics under Admin → Property details. Enter only the numeric ID.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button type="button" onClick={handleSaveGa4Property} disabled={genericUpdateMutation.isPending}>
+                        {genericUpdateMutation.isPending ? "Saving..." : "Save"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleTestGa4}
+                        disabled={!data.ga4PropertyId || ga4TestMutation.isPending}
+                      >
+                        {ga4TestMutation.isPending ? "Testing..." : "Test connection"}
+                      </Button>
+                    </div>
+                    {ga4SaveMessage && (
+                      <p className="text-sm text-muted-foreground">
+                        {ga4SaveMessage}
+                      </p>
+                    )}
+                    {ga4TestMessage && (
+                      <p className="text-sm text-muted-foreground">
+                        {ga4TestMessage}
+                      </p>
+                    )}
+                    {ga4TestSample && (
+                      <p className="text-xs text-muted-foreground">
+                        Sample data (last 7 days): {ga4TestSample.users ?? 0} users ·{" "}
+                        {ga4TestSample.sessions ?? 0} sessions
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="hosting" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -961,6 +1200,26 @@ export default function TenantDetailPage() {
                             </FormItem>
                           )}
                         />
+                  <FormField
+                    control={hostingForm.control}
+                    name="hostingCpanelUsername"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>cPanel / WHM username</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g. client123"
+                            value={field.value ?? ""}
+                            onChange={(event) => field.onChange(event.target.value)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          This must match the WHM account username configured on the hosting server.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                         <FormField
                           control={hostingForm.control}
                           name="hostingOrdered"
@@ -991,6 +1250,29 @@ export default function TenantDetailPage() {
                     <p className="text-xs text-muted-foreground">
                       Maintenance plan settings now live under the Maintenance tab.
                     </p>
+                    <div className="rounded-lg border border-dashed border-border p-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Send hosting info email</p>
+                        <p className="text-xs text-muted-foreground">
+                          Emails the latest plan summary and cPanel link to the tenant&apos;s contacts.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="mt-3"
+                        disabled={
+                          sendHostingEmailMutation.isPending ||
+                          !tenantId ||
+                          !data?.hostingCpanelUsername
+                        }
+                        onClick={() => sendHostingEmailMutation.mutate()}
+                      >
+                        {sendHostingEmailMutation.isPending
+                          ? "Sending..."
+                          : "Send Hosting Info Email"}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1069,17 +1351,44 @@ export default function TenantDetailPage() {
                           <p className="text-foreground">{user.email}</p>
                           <p className="text-xs uppercase text-muted-foreground">{user.role}</p>
                         </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            setUserToDelete(user);
-                            setDeleteUserError(null);
-                            setIsDeleteUserDialogOpen(true);
-                          }}
-                        >
-                          Delete
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              Actions
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            {user.role?.toLowerCase() === "client" && (
+                              <DropdownMenuItem
+                                disabled={
+                                  sendWelcomeEmailMutation.isPending &&
+                                  sendWelcomeEmailMutation.variables === user.id
+                                }
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  sendWelcomeEmailMutation.mutate(user.id);
+                                }}
+                              >
+                                {sendWelcomeEmailMutation.isPending &&
+                                sendWelcomeEmailMutation.variables === user.id
+                                  ? "Sending welcome..."
+                                  : "Send welcome email"}
+                              </DropdownMenuItem>
+                            )}
+                            {user.role?.toLowerCase() === "client" && <DropdownMenuSeparator />}
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onSelect={(event) => {
+                                event.preventDefault();
+                                setUserToDelete(user);
+                                setDeleteUserError(null);
+                                setIsDeleteUserDialogOpen(true);
+                              }}
+                            >
+                              Delete user
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     ))}
 

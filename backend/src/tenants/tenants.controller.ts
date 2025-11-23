@@ -101,6 +101,7 @@ export class TenantsController {
       wpSiteUrl: tenant.wpSiteUrl,
       wpApiUser: tenant.wpApiUser,
       wpAppPassword: tenant.wpAppPassword,
+      hostingCpanelUsername: tenant.hostingCpanelUsername,
       maintenancePlanName: tenant.maintenancePlanName,
       maintenanceHoursPerMonth: tenant.maintenanceHoursPerMonth,
       maintenanceCarryoverMode: tenant.maintenanceCarryoverMode,

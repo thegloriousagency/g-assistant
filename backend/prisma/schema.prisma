@@ -19,6 +19,7 @@ model Tenant {
   wpApiUser     String?
   wpAppPassword String?
   hostingExpirationDate     DateTime?
+  hostingCpanelUsername     String?
   maintenanceExpirationDate DateTime?
   hostingOrdered     Boolean @default(false)
   maintenanceOrdered Boolean @default(false)
@@ -26,6 +27,9 @@ model Tenant {
   maintenanceHoursPerMonth   Float?
   maintenanceCarryoverMode   String?
   maintenanceStartDate       DateTime?
+  ga4PropertyId              String?
+  ga4ConnectedAt             DateTime?
+  ga4LastSyncStatus          String?
   users        User[]
   maintenanceCycles MaintenanceCycle[]
   maintenanceTasks MaintenanceTask[]
@@ -41,6 +45,14 @@ model User {
   tenantId  String?
   email     String   @unique
   password  String
+  tokenVersion Int   @default(0)
+  passwordUpdatedAt DateTime?
+  passwordResetToken String?
+  passwordResetExpiresAt DateTime?
+  pendingEmail String?
+  pendingEmailToken String?
+  pendingEmailExpiresAt DateTime?
+  emailVerified Boolean @default(true)
   role      String
   tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   ticketsCreated Ticket[]        @relation("TicketsCreatedBy")
@@ -152,6 +164,8 @@ model Ticket {
   status        TicketStatus    @default(OPEN)
   priority      TicketPriority  @default(NORMAL)
   lastMessageAt DateTime
+  lastEmailToClientAt DateTime?
+  lastEmailToAdminAt DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 

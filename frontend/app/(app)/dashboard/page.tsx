@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { useGa4Summary, type SupportedGa4Range } from "@/hooks/useGa4";
+import { AnalyticsKpi, formatAnalyticsDuration } from "@/components/analytics/analytics-kpi";
 
 // TODO: Re-enable WordPress posts typing (disabled for MVP focus)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -70,8 +72,13 @@ function formatEndDate(iso?: string | null) {
   });
 }
 
+function formatDurationLabel(seconds: number) {
+  return formatAnalyticsDuration(seconds);
+}
+
 export default function DashboardPage() {
-  const { user, tenant } = useAuth();
+  const { tenant } = useAuth();
+  const [analyticsRange, setAnalyticsRange] = useState<SupportedGa4Range>("last_30_days");
   const {
     data: maintenance,
     isLoading: isMaintLoading,
@@ -89,6 +96,11 @@ export default function DashboardPage() {
       Boolean(tenant?.wpAppPassword),
     [tenant?.wpSiteUrl, tenant?.wpApiUser, tenant?.wpAppPassword],
   );
+  const {
+    data: analytics,
+    isLoading: isAnalyticsLoading,
+    isError: isAnalyticsError,
+  } = useGa4Summary(analyticsRange);
 
   // TODO: Re-enable WordPress posts (disabled for MVP focus)
   /*
@@ -166,6 +178,7 @@ export default function DashboardPage() {
             : "bg-red-500";
     }
 
+    const detailHref = label === "Hosting" ? "/dashboard/hosting" : "/dashboard/maintenance";
     const shouldShowRenew =
       ordered && status.state === "active" && typeof status.diffMonths === "number"
         ? status.diffMonths < 3
@@ -192,12 +205,33 @@ export default function DashboardPage() {
                 ? "No expiration date set"
                 : "Service not ordered"}
         </p>
-        {shouldShowRenew && renewHref && renewCopy && (
-          <Button type="button" size="sm" variant="outline" asChild>
-            {/* TODO: Replace href with real renew URL */}
-            <a href={renewHref}>{renewCopy}</a>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {shouldShowRenew && renewHref && renewCopy && (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <a href={renewHref}>{renewCopy}</a>
+            </Button>
+          )}
+          <Link
+            href={detailHref}
+            className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+          >
+            View {label.toLowerCase()} details
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            >
+              <path d="M7 17L17 7" />
+              <path d="M7 7h10v10" />
+            </svg>
+          </Link>
+        </div>
       </div>
     );
   };
@@ -206,28 +240,28 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <div className="space-y-8">
         <section className="space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-foreground">Client overview</h2>
-            <p className="text-sm text-muted-foreground">
-              Welcome back to your tenant workspace.
-            </p>
-          </div>
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <p className="text-base font-semibold text-foreground">
-              Welcome{user ? `, ${user.email}` : "!"}
-            </p>
-            <p>Tenant: {tenant?.name ?? "No tenant assigned"}</p>
-            <p>Website: {tenant?.websiteUrl || "Not configured"}</p>
-            <p>Contact email: {tenant?.contactEmail || "Not provided"}</p>
-          </div>
-        </section>
-
-        <section className="space-y-4 border-t border-border pt-6">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-foreground">Service status</h2>
-            <p className="text-sm text-muted-foreground">
-              Track hosting and maintenance timelines.
-            </p>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Service status</h2>
+              <p className="text-sm text-muted-foreground">
+                Track hosting and maintenance timelines.
+              </p>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Website</p>
+              {tenant?.websiteUrl ? (
+                <Link
+                  href={tenant.websiteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {tenant.websiteUrl}
+                </Link>
+              ) : (
+                <span>Not configured</span>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-6 md:flex-row">
             {renderStatusBlock(
@@ -247,6 +281,97 @@ export default function DashboardPage() {
               "Renew maintenance",
             )}
           </div>
+        </section>
+
+        <section className="space-y-4 border-t border-border pt-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Analytics</h2>
+              <p className="text-sm text-muted-foreground">
+                Website analytics (powered by Google Analytics 4).
+              </p>
+            </div>
+            <div className="inline-flex rounded-md border border-border p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                className={cn(
+                  "rounded px-3 py-1 transition",
+                  analyticsRange === "last_7_days"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setAnalyticsRange("last_7_days")}
+              >
+                Last 7 days
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded px-3 py-1 transition",
+                  analyticsRange === "last_30_days"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setAnalyticsRange("last_30_days")}
+              >
+                Last 30 days
+              </button>
+            </div>
+          </div>
+          {isAnalyticsLoading && (
+            <p className="text-sm text-muted-foreground">Loading analytics…</p>
+          )}
+          {isAnalyticsError && (
+            <p className="text-sm text-destructive">
+              We couldn’t load analytics right now. Please try again later or contact support.
+            </p>
+          )}
+          {!isAnalyticsLoading && !isAnalyticsError && analytics && (
+            <>
+              {analytics.configured ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <AnalyticsKpi
+                    label="Visitors"
+                    helper="Unique users"
+                    tooltip="Unique users (GA4 totalUsers)"
+                    value={analytics.totals.users.toLocaleString()}
+                  />
+                  <AnalyticsKpi
+                    label="Visits"
+                    helper="Sessions"
+                    tooltip="Sessions (GA4 sessions)"
+                    value={analytics.totals.sessions.toLocaleString()}
+                  />
+                  <AnalyticsKpi
+                    label="Page views"
+                    helper="Views"
+                    tooltip="Views (GA4 screenPageViews)"
+                    value={analytics.totals.pageViews.toLocaleString()}
+                  />
+                  <AnalyticsKpi
+                    label="Avg. visit duration"
+                    helper="Average session duration"
+                    tooltip="Average session duration (GA4 averageSessionDuration)"
+                    value={formatDurationLabel(analytics.totals.avgSessionDuration)}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Analytics is not connected yet for this account. Contact us to set this up.
+                </p>
+              )}
+              {analytics.error && (
+                <p className="text-sm text-muted-foreground" title={analytics.error}>
+                  We couldn’t load analytics right now. Please try again later or contact support.
+                </p>
+              )}
+              <div>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/dashboard/analytics">View full analytics</Link>
+                </Button>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="space-y-4 border-t border-border pt-6">
@@ -303,61 +428,61 @@ export default function DashboardPage() {
 
         {/*
           TODO: Re-enable WordPress posts (disabled for hosting/maintenance MVP)
-          <Card>
-            <CardHeader>
-              <CardTitle>WordPress posts</CardTitle>
-              <CardDescription>
-                Latest posts pulled from your connected WordPress site.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {!wpConfigured && (
-                <p className="text-muted-foreground">
-                  WordPress connection is not configured for this tenant yet.
-                </p>
+        <Card>
+          <CardHeader>
+            <CardTitle>WordPress posts</CardTitle>
+            <CardDescription>
+              Latest posts pulled from your connected WordPress site.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {!wpConfigured && (
+              <p className="text-muted-foreground">
+                WordPress connection is not configured for this tenant yet.
+              </p>
+            )}
+
+            {wpConfigured && isLoading && (
+              <p className="text-muted-foreground">Loading WordPress posts...</p>
+            )}
+
+            {wpConfigured && isError && (
+              <p className="text-destructive">
+                {error instanceof ApiError
+                  ? error.message
+                  : "Failed to load WordPress posts."}
+              </p>
+            )}
+
+            {wpConfigured &&
+              !isLoading &&
+              !isError &&
+              posts &&
+              posts.length === 0 && (
+                <p className="text-muted-foreground">No posts found.</p>
               )}
 
-              {wpConfigured && isLoading && (
-                <p className="text-muted-foreground">Loading WordPress posts...</p>
+            {wpConfigured &&
+              !isLoading &&
+              !isError &&
+              posts &&
+              posts.length > 0 && (
+                <ul className="space-y-3">
+                  {posts.map((post) => (
+                    <li key={post.id} className="border-b pb-2 last:border-b-0">
+                      <p className="font-medium text-foreground">
+                        {post.title || "(no title)"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Status: {post.status} • Published:{" "}
+                        {new Date(post.date).toLocaleDateString()}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
               )}
-
-              {wpConfigured && isError && (
-                <p className="text-destructive">
-                  {error instanceof ApiError
-                    ? error.message
-                    : "Failed to load WordPress posts."}
-                </p>
-              )}
-
-              {wpConfigured &&
-                !isLoading &&
-                !isError &&
-                posts &&
-                posts.length === 0 && (
-                  <p className="text-muted-foreground">No posts found.</p>
-                )}
-
-              {wpConfigured &&
-                !isLoading &&
-                !isError &&
-                posts &&
-                posts.length > 0 && (
-                  <ul className="space-y-3">
-                    {posts.map((post) => (
-                      <li key={post.id} className="border-b pb-2 last:border-b-0">
-                        <p className="font-medium text-foreground">
-                          {post.title || "(no title)"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Status: {post.status} • Published:{" "}
-                          {new Date(post.date).toLocaleDateString()}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
         */}
       </div>
     </ProtectedRoute>
