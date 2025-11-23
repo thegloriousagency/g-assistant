@@ -5,9 +5,9 @@
   "scripts": {
     "postinstall": "npm run prisma:generate",
     "build": "nest build",
-    "start": "node dist/main",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
