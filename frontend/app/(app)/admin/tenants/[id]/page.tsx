@@ -147,19 +147,16 @@ const createUserSchema = z.object({
   password: z.string().min(6, "Minimum 6 characters"),
 });
 
-const optionalNumber = z.preprocess(
-  (value) => {
-    if (value === "" || value === null || value === undefined) {
-      return undefined;
-    }
-    if (typeof value === "string" && value.trim().length === 0) {
-      return undefined;
-    }
-    const num = typeof value === "number" ? value : Number(value);
-    return Number.isNaN(num) ? undefined : num;
-  },
-  z.number().optional(),
-);
+const optionalNumber = z.preprocess((value) => {
+  if (value === "" || value === null || value === undefined) {
+    return undefined;
+  }
+  if (typeof value === "string" && value.trim().length === 0) {
+    return undefined;
+  }
+  const num = typeof value === "number" ? value : Number(value);
+  return Number.isNaN(num) ? undefined : num;
+}, z.number());
 
 const maintenancePlanSchema = z.object({
   maintenancePlanName: z.string().optional(),
