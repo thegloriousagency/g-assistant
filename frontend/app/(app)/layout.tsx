@@ -186,8 +186,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onSelect={(event) => {
-                      event.preventDefault();
+                    onSelect={() => {
                       handleLogout();
                     }}
                   >

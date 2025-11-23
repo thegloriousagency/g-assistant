@@ -147,25 +147,16 @@ const createUserSchema = z.object({
   password: z.string().min(6, "Minimum 6 characters"),
 });
 
-const optionalNumber = z.preprocess((value) => {
-  if (value === "" || value === null || value === undefined) {
-    return undefined;
-  }
-  if (typeof value === "string" && value.trim().length === 0) {
-    return undefined;
-  }
-  const num = typeof value === "number" ? value : Number(value);
-  return Number.isNaN(num) ? undefined : num;
-}, z.number());
-
 const maintenancePlanSchema = z.object({
   maintenancePlanName: z.string().optional(),
-  maintenanceHoursPerMonth: optionalNumber.optional(),
+  maintenanceHoursPerMonth: z.number().min(0, "Hours must be zero or more").optional(),
   maintenanceCarryoverMode: z.enum(["carry", "none"]).optional(),
   maintenanceStartDate: z.string().optional(),
   maintenanceExpirationDate: z.string().optional(),
   maintenanceOrdered: z.boolean().optional(),
 });
+
+type MaintenancePlanInput = z.infer<typeof maintenancePlanSchema>;
 
 const createTaskSchema = z.object({
   title: z.string().min(2, "Title is required"),
@@ -175,22 +166,8 @@ const createTaskSchema = z.object({
 
 const createEntrySchema = z.object({
   date: z.string().min(1, "Date is required"),
-  hours: z
-    .preprocess((value) => {
-      if (value === "" || value === null || value === undefined) {
-        return 0;
-      }
-      const num = typeof value === "number" ? value : Number(value);
-      return Number.isNaN(num) ? 0 : Math.floor(num);
-    }, z.number().int().min(0)),
-  minutes: z
-    .preprocess((value) => {
-      if (value === "" || value === null || value === undefined) {
-        return 0;
-      }
-      const num = typeof value === "number" ? value : Number(value);
-      return Number.isNaN(num) ? 0 : Math.floor(num);
-    }, z.number().int().min(0).max(59)),
+  hours: z.number().int().min(0),
+  minutes: z.number().int().min(0).max(59),
   taskId: z.string().optional(),
   isIncludedInPlan: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
@@ -200,7 +177,6 @@ type BasicInfoInput = z.infer<typeof basicInfoSchema>;
 type WordpressInput = z.infer<typeof wordpressSchema>;
 type HostingInput = z.infer<typeof hostingSchema>;
 type CreateUserInput = z.infer<typeof createUserSchema>;
-type MaintenancePlanInput = z.infer<typeof maintenancePlanSchema>;
 type CreateTaskInput = z.infer<typeof createTaskSchema>;
 type CreateEntryInput = z.infer<typeof createEntrySchema>;
 
@@ -241,6 +217,21 @@ function formatDateTime(iso?: string | null) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function normalizeCarryoverMode(mode?: string | null): "carry" | "none" {
+  if (mode === "carry" || mode === "none") {
+    return mode;
+  }
+  return "none";
+}
+
+function toOptionalNumber(value: string): number | undefined {
+  if (value === "") {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
 }
 
 export default function TenantDetailPage() {
@@ -457,7 +448,7 @@ export default function TenantDetailPage() {
     maintenancePlanForm.reset({
       maintenancePlanName: data.maintenancePlanName ?? "",
       maintenanceHoursPerMonth: data.maintenanceHoursPerMonth ?? undefined,
-      maintenanceCarryoverMode: data.maintenanceCarryoverMode ?? "none",
+      maintenanceCarryoverMode: normalizeCarryoverMode(data.maintenanceCarryoverMode),
       maintenanceStartDate: data.maintenanceStartDate
         ? data.maintenanceStartDate.slice(0, 10)
         : "",
@@ -1361,8 +1352,7 @@ export default function TenantDetailPage() {
                                   sendWelcomeEmailMutation.isPending &&
                                   sendWelcomeEmailMutation.variables === user.id
                                 }
-                                onSelect={(event) => {
-                                  event.preventDefault();
+                                onSelect={() => {
                                   sendWelcomeEmailMutation.mutate(user.id);
                                 }}
                               >
@@ -1375,8 +1365,7 @@ export default function TenantDetailPage() {
                             {user.role?.toLowerCase() === "client" && <DropdownMenuSeparator />}
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onSelect={(event) => {
-                                event.preventDefault();
+                              onSelect={() => {
                                 setUserToDelete(user);
                                 setDeleteUserError(null);
                                 setIsDeleteUserDialogOpen(true);
@@ -1391,7 +1380,7 @@ export default function TenantDetailPage() {
 
                     <Dialog
                       open={isDeleteUserDialogOpen}
-                      onOpenChange={(open) => {
+                      onOpenChange={(open: boolean) => {
                         setIsDeleteUserDialogOpen(open);
                         if (!open) {
                           setUserToDelete(null);
@@ -1462,14 +1451,9 @@ export default function TenantDetailPage() {
                             <Input
                               type="number"
                               step="0.1"
+                              min="0"
                               value={field.value ?? ""}
-                              onChange={(event) =>
-                                field.onChange(
-                                  event.target.value === ""
-                                    ? undefined
-                                    : Number(event.target.value),
-                                )
-                              }
+                              onChange={(event) => field.onChange(toOptionalNumber(event.target.value))}
                             />
                           </FormControl>
                           <FormMessage />
@@ -1811,7 +1795,16 @@ export default function TenantDetailPage() {
                           <FormItem>
                             <FormLabel>Hours</FormLabel>
                             <FormControl>
-                              <Input type="number" min="0" placeholder="0" {...field} />
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={Number.isFinite(field.value) ? field.value : 0}
+                                onChange={(event) => {
+                                  const parsed = Math.floor(event.target.valueAsNumber);
+                                  field.onChange(Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1824,7 +1817,22 @@ export default function TenantDetailPage() {
                           <FormItem>
                             <FormLabel>Minutes</FormLabel>
                             <FormControl>
-                              <Input type="number" min="0" max="59" placeholder="0" {...field} />
+                              <Input
+                                type="number"
+                                min="0"
+                                max="59"
+                                step="1"
+                                value={Number.isFinite(field.value) ? field.value : 0}
+                                onChange={(event) => {
+                                  const parsed = Math.floor(event.target.valueAsNumber);
+                                  if (Number.isNaN(parsed)) {
+                                    field.onChange(0);
+                                    return;
+                                  }
+                                  const clamped = Math.min(59, Math.max(0, parsed));
+                                  field.onChange(clamped);
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1962,7 +1970,7 @@ export default function TenantDetailPage() {
 
             <Dialog
               open={isDeleteTenantDialogOpen}
-              onOpenChange={(open) => {
+              onOpenChange={(open: boolean) => {
                 setIsDeleteTenantDialogOpen(open);
                 if (!open) {
                   setDeleteTenantError(null);

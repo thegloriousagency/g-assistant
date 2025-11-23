@@ -51,7 +51,7 @@ export function useClientTickets(
   return useQuery<PaginatedResult<Ticket>>({
     queryKey: ['tickets', 'client', pagination],
     queryFn: () => fetchClientTickets(pagination),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData ?? undefined,
     enabled: options?.enabled ?? true,
   });
 }
@@ -107,7 +107,7 @@ export function useAdminTickets(
   return useQuery<PaginatedResult<Ticket>>({
     queryKey: ['tickets', 'admin', pagination],
     queryFn: () => fetchAdminTickets(pagination),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData ?? undefined,
     enabled: options?.enabled ?? true,
   });
 }
