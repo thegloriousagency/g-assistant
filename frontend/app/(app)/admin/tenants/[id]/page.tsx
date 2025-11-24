@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -239,6 +240,8 @@ export default function TenantDetailPage() {
   const tenantId = params?.id;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { status: authStatus, user } = useAuth();
+  const canQuery = authStatus === "authenticated" && user?.role === "admin";
   const [basicInfoMessage, setBasicInfoMessage] = useState<string | null>(null);
   const [wordpressMessage, setWordpressMessage] = useState<string | null>(null);
   const [hostingMessage, setHostingMessage] = useState<string | null>(null);
@@ -277,7 +280,7 @@ export default function TenantDetailPage() {
         { method: "GET" },
         true,
       ),
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId) && canQuery,
   });
 
   const {
@@ -293,7 +296,7 @@ export default function TenantDetailPage() {
         { method: "GET" },
         true,
       ),
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId) && canQuery,
   });
 
   const {
@@ -308,7 +311,7 @@ export default function TenantDetailPage() {
         { method: "GET" },
         true,
       ),
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId) && canQuery,
   });
 
   const {
@@ -323,7 +326,7 @@ export default function TenantDetailPage() {
         { method: "GET" },
         true,
       ),
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId) && canQuery,
   });
 
   const {
@@ -338,6 +341,7 @@ export default function TenantDetailPage() {
         { method: "GET" },
         true,
       ),
+    enabled: canQuery,
   });
 
   const {
@@ -352,7 +356,7 @@ export default function TenantDetailPage() {
         { method: "GET" },
         true,
       ),
-    enabled: Boolean(tenantId),
+    enabled: Boolean(tenantId) && canQuery,
   });
 
   const sanitize = (value?: string | null) =>
