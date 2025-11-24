@@ -38,7 +38,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    if (user.tokenVersion !== (payload.tokenVersion ?? 0)) {
+    const currentVersion = user.tokenVersion ?? 0;
+    const payloadVersion = payload.tokenVersion ?? 0;
+    if (currentVersion !== payloadVersion) {
       throw new UnauthorizedException('Token is no longer valid');
     }
 
