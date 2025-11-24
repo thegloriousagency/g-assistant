@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { ensureGaCredsFile } from './utils/ga4-credentials';
+
+ensureGaCredsFile();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
