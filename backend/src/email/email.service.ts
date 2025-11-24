@@ -34,8 +34,12 @@ export class EmailService {
   private readonly apiKey = process.env.EMAILIT_API_KEY;
   private readonly from =
     process.env.EMAIL_FROM ?? 'The Glorious Agency <no-reply@theglorious.agency>';
-  private readonly appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+  private readonly appUrl: string;
   private readonly endpoint = 'https://api.emailit.com/v1/emails';
+
+  constructor() {
+    this.appUrl = this.resolveAppUrl();
+  }
 
   async sendWelcomeSetPasswordEmail(email: string, token: string) {
     const link = `${this.appUrl}/set-password?token=${encodeURIComponent(token)}`;
@@ -84,6 +88,14 @@ export class EmailService {
       html,
       text,
     });
+  }
+
+  private resolveAppUrl() {
+    const frontendEnv = process.env.FRONTEND_URL?.split(',')
+      .map((value) => value.trim())
+      .find((value) => value.length > 0);
+    const raw = process.env.APP_URL?.trim() ?? frontendEnv ?? 'http://localhost:3000';
+    return raw.replace(/\/$/, '');
   }
 
   async sendPasswordResetEmail(email: string, token: string) {
