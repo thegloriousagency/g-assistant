@@ -40,9 +40,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const currentVersion = user.tokenVersion ?? 0;
     const payloadVersion = payload.tokenVersion ?? 0;
-    if (currentVersion !== payloadVersion) {
-      throw new UnauthorizedException('Token is no longer valid');
-    }
+    // if (currentVersion !== payloadVersion) {
+    //   throw new UnauthorizedException('Token is no longer valid');
+    // }
 
     return {
       userId: user.id,
