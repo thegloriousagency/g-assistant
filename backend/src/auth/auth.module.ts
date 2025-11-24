@@ -44,7 +44,7 @@ function resolveJwtExpiresIn(
     return numericValue;
   }
 
-  return trimmed;
+  return trimmed as JwtSignOptions['expiresIn'];
 }
 
 @Module({
