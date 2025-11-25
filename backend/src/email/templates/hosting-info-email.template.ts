@@ -65,6 +65,7 @@ export interface HostingInfoEmailTemplate {
 
 export function buildHostingInfoEmail(
   content: HostingInfoEmailContent,
+  appUrl: string,
 ): HostingInfoEmailTemplate {
   const planName = content.planName ?? 'Custom plan';
   const storage = formatCapacityMb(content.storageMb);
@@ -103,9 +104,12 @@ export function buildHostingInfoEmail(
     )
     .join('');
 
-  const dashboardLink = `${process.env.APP_URL ?? 'http://localhost:3000'}/dashboard/hosting`;
+  const sanitizedAppUrl = appUrl.replace(/\/$/, '');
+  const dashboardLink = `${sanitizedAppUrl}/dashboard/hosting`;
   const cpanelLink =
     content.cpanelLoginUrl ??
+    process.env.CPANEL_LINK ??
+    process.env.CPANEL_LOGIN_URL ??
     'https://cpanel.theglorious.agency:2083/login/?login_only=1';
 
   const html = `<!DOCTYPE html>

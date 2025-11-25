@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
 import { CreateClientUserDto } from './dto/create-client-user.dto';
 import { EmailService } from '../email/email.service';
+import { WELCOME_SET_PASSWORD_TOKEN_TTL_MS } from './users.constants';
 
 const PASSWORD_COMPLEXITY =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
@@ -48,7 +49,10 @@ export class UsersService {
         createdAt: true,
       },
     });
-    const { token } = await this.assignPasswordResetToken(user.id);
+    const { token } = await this.assignPasswordResetToken(
+      user.id,
+      WELCOME_SET_PASSWORD_TOKEN_TTL_MS,
+    );
     await this.safeSendEmail(
       () => this.emailService.sendWelcomeSetPasswordEmail(user.email, token),
       'welcome set password',
@@ -113,7 +117,10 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const { token } = await this.assignPasswordResetToken(user.id);
+    const { token } = await this.assignPasswordResetToken(
+      user.id,
+      WELCOME_SET_PASSWORD_TOKEN_TTL_MS,
+    );
     await this.safeSendEmail(
       () => this.emailService.sendPasswordResetEmail(user.email, token),
       'admin password reset',

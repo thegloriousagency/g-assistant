@@ -16,6 +16,7 @@ import { HostingInfoEmailContent } from '../email/templates/hosting-info-email.t
 import { Tenant, User } from '@prisma/client';
 
 const DEFAULT_CPANEL_LOGIN_URL =
+  process.env.CPANEL_LINK ??
   process.env.CPANEL_LOGIN_URL ??
   'https://cpanel.theglorious.agency:2083/login/?login_only=1';
 

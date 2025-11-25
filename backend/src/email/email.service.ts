@@ -4,6 +4,7 @@ import {
   buildHostingInfoEmail,
   HostingInfoEmailContent,
 } from './templates/hosting-info-email.template';
+import { WELCOME_SET_PASSWORD_TOKEN_TTL_HOURS } from '../users/users.constants';
 
 interface EmailPayload {
   to: string;
@@ -43,6 +44,9 @@ export class EmailService {
 
   async sendWelcomeSetPasswordEmail(email: string, token: string) {
     const link = `${this.appUrl}/set-password?token=${encodeURIComponent(token)}`;
+    const expiresHours = WELCOME_SET_PASSWORD_TOKEN_TTL_HOURS;
+    const fallbackLoginText = `If it expires, go to ${this.appUrl} and choose "Forgot password" to request a fresh link.`;
+    const fallbackLoginHtml = `This secure link stays active for ${expiresHours} hours. If you miss that window, head to <a href="${this.appUrl}" style="color:#111;text-decoration:underline;">${this.appUrl}</a> and use "Forgot password" to request a fresh link.`;
     const html = `<!DOCTYPE html>
 <html>
   <body style="font-family: Arial, sans-serif; color: #111; line-height: 1.5; margin: 0; padding: 24px; background-color:#f8f8f8;">
@@ -55,6 +59,7 @@ export class EmailService {
             <a href="${link}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:6px;">Create password</a>
           </p>
           <p style="font-size:13px;color:#555;">This secure link lets you create your login credentials.</p>
+          <p style="font-size:13px;color:#555;">${fallbackLoginHtml}</p>
           <p style="margin-top:24px;">Inside the dashboard you can review hosting details*, track website analytics, see monthly maintenance activity*, request updates, and manage support conversations in one place.</p>
           <p>If you need any help, just reply to this email or message us from within the dashboard.</p>
           <p style="margin-top:24px;">— The Glorious Agency Support Team</p>
@@ -70,6 +75,8 @@ export class EmailService {
     const text = [
       'Your Glorious Agency dashboard is ready.',
       `Set your password here: ${link}`,
+      '',
+      `This link stays active for ${expiresHours} hours. ${fallbackLoginText}`,
       '',
       'From the dashboard you can:',
       '- Review hosting details*, analytics, and maintenance activity*.',
@@ -147,7 +154,7 @@ export class EmailService {
   }
 
   async sendHostingInfoEmail(to: string, content: HostingInfoEmailContent) {
-    const template = buildHostingInfoEmail(content);
+    const template = buildHostingInfoEmail(content, this.appUrl);
     return this.sendEmail({
       to,
       subject: template.subject,
