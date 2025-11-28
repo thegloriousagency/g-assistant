@@ -19,6 +19,7 @@ import {
   Ticket,
   LogOut,
   ChevronDown,
+  CalendarDays,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -134,6 +135,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
                         </Link>
                       </DropdownMenuItem>
                       {!isAdmin && (
+                        <DropdownMenuItem asChild>
+                          <Link href="/dashboard/calendar" className="flex items-center gap-2">
+                            <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                            Calendar
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      {!isAdmin && (
                         <>
                           <DropdownMenuItem asChild>
                             <Link href="/dashboard/hosting" className="flex items-center gap-2">
@@ -204,6 +213,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <nav className="space-y-2">
             <NavLink href="/dashboard" label="Dashboard" icon={LayoutDashboard} />
             <NavLink href="/dashboard/analytics" label="Analytics" icon={BarChart3} />
+            {!isAdmin && <NavLink href="/dashboard/calendar" label="Calendar" icon={CalendarDays} />}
             {!isAdmin && (
               <>
                 <NavLink href="/dashboard/hosting" label="Hosting" icon={Server} />

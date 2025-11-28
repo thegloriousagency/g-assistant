@@ -1,0 +1,93 @@
+WordPress Church Events – Debug Notes (2025-11-27)
+=================================================
+
+Environment
+-----------
+- Tenant: aedc6ea1-4f29-450f-82ef-c7b5fcb799c2 (St Vladimir staging)
+- Event: WordPress post ID 156 (`church_event` CPT, title “Wednesday test 23”)
+- Authentication: REST Application Password user configured in our multi-tenant app
+
+What our app sends
+------------------
+When editing the event in `/dashboard/calendar`, the UI builds this payload (confirmed via
+the new “Debug: payload preview” panel):
+
+```
+{
+  "title": "Wednesday test 23",
+  "content": "mmmmmoo33",
+  "status": "publish",
+  "meta": {
+    "_event_start": ["2025-12-03 18:00:00"],
+    "_event_end": ["2025-12-04 22:30:00"],
+    "_event_all_day": ["0"],
+    "_event_location_mode": ["custom"],
+    "_event_location": ["LOCATION NEW 2"],
+    "_event_is_recurring": ["0"],
+    "_event_rrule": [""],
+    "_event_rdates": [""],
+    "_event_exdates": [""],
+    "_event_location_id": [""]
+  }
+}
+```
+
+Backend log excerpt (timestamps PST):
+
+```
+[11:31:06] [WordpressService] [WordPress][update] tenant=... payload={...above...}
+[11:31:06] [WordpressService] [WordPress] POST /wp-json/wp/v2/church_event/156 (tenant=...)
+```
+
+So WordPress definitely receives the updated `_event_start` (`18:00`) and `_event_end`.
+
+What WordPress returns
+----------------------
+Immediately after the POST we call:
+
+```
+GET /wp-json/wp/v2/church_event/156?context=edit&_fields=id,meta
+```
+
+using the same credentials. The response comes back **without any `meta` field**. Our log:
+
+```
+[11:31:06] [WordpressService] [WordPress] GET /wp-json/wp/v2/church_event/156 (tenant=...)
+[11:31:06] [WordpressService] [WordPress][update] tenant=... meta snapshot missing after fetch
+```
+
+This means the REST API is not exposing `_event_start`, `_event_end`, etc. for that CPT,
+even though they were just sent. Because the WP REST endpoint won’t give us the stored meta,
+the Church Events plugin’s `/wp-json/church-events/v1/events` endpoint continues to emit
+the original times (`20:00`), so our dashboard keeps showing the wrong schedule.
+
+Steps for plugin / WP team
+--------------------------
+1. Using the same Application Password credentials, reproduce with Postman:
+   - POST to `/wp-json/wp/v2/church_event/156` with the payload shown above.
+   - GET `/wp-json/wp/v2/church_event/156?context=edit&_fields=id,meta`.
+   - Observe that the `meta` object is missing or empty.
+   - Repeat with other events (IDs 50 “Friday Test” and 52 “пятниця”). Even when `_event_start`
+     changes (e.g. `10:00 -> 00:30 next day`) the follow-up GET still lacks meta.
+2. Check how the Church Events plugin registers these meta keys. They may need
+   `show_in_rest => true`, or there may be companion fields (`_event_start_tz`,
+   `_event_start_utc`, etc.) that must be updated at the same time.
+3. Confirm no other plugin (Polylang, caching) strips meta from REST responses for
+   Application Password users.
+4. Once the REST API consistently returns `_event_start/_event_end`, the recurrence
+   feed `/wp-json/church-events/v1/events` should start reflecting the new times automatically.
+
+Key takeaway
+------------
+Our app is sending the correct times, but WordPress is either discarding them or hiding them
+from the REST API. Fixing the meta exposure/storage inside WordPress/Church Events is
+required before the dashboard can display the updated schedule.
+
+Reference material for the plugin team
+--------------------------------------
+- WordPress REST docs on exposing meta: https://developer.wordpress.org/rest-api/extending-the-rest-api/adding-rest-api-support-for-custom-content-types/#exposing-custom-fields
+  * Each key must be registered via `register_post_meta( 'church_event', '_event_start', [ 'show_in_rest' => true, 'type' => 'string' ] );`
+  * If `show_in_rest` is omitted, updates via REST appear to succeed but WordPress omits those keys in responses.
+- General post update reference: https://developer.wordpress.org/rest-api/reference/posts/#update-a-post
+  * “Only registered meta keys can be updated via the REST API.” This explains why `_event_start` disappears—WordPress isn’t treating it as REST-registered for the current credentials.
+

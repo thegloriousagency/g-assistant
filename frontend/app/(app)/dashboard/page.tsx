@@ -426,6 +426,29 @@ export default function DashboardPage() {
           )}
         </section>
 
+        <section className="space-y-4 border-t border-border pt-6">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-foreground">Calendar</h2>
+            <p className="text-sm text-muted-foreground">
+              Preview and sync events from your connected WordPress site.
+            </p>
+          </div>
+          {!wpConfigured ? (
+            <p className="text-sm text-muted-foreground">
+              Add your WordPress URL and Application Password in Settings to enable the calendar integration.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 text-sm text-muted-foreground">
+              <div>
+                View upcoming services, classes, and events directly inside the dashboard.
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/dashboard/calendar">Open calendar</Link>
+              </Button>
+            </div>
+          )}
+        </section>
+
         {/*
           TODO: Re-enable WordPress posts (disabled for hosting/maintenance MVP)
         <Card>

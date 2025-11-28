@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import type { WordpressConnectionTestResult } from "@/types/wordpress";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -534,9 +535,9 @@ export default function TenantDetailPage() {
     },
   });
 
-  const testConnectionMutation = useMutation({
+  const testConnectionMutation = useMutation<WordpressConnectionTestResult>({
     mutationFn: () =>
-      apiFetch<{ ok: true; postsCount: number }>(
+      apiFetch<WordpressConnectionTestResult>(
         `/wordpress/admin/tenants/${tenantId}/test`,
         {
           method: "GET",
@@ -544,9 +545,12 @@ export default function TenantDetailPage() {
         true,
       ),
     onSuccess: (result) => {
+      const eventsText = result.events.ok
+        ? `Events endpoint OK (${result.events.count ?? 0} occurrences between ${result.events.start} and ${result.events.end}).`
+        : `Events endpoint issue: ${result.events.message ?? "Unknown error"}.`;
       setTestMessage({
-        type: "success",
-        text: `Connection OK — ${result.postsCount} posts found.`,
+        type: result.events.ok ? "success" : "error",
+        text: `Connection OK — ${result.postsCount} posts found. ${eventsText}`,
       });
     },
     onError: (err) => {

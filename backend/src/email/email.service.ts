@@ -61,7 +61,6 @@ export class EmailService {
           <p style="font-size:13px;color:#555;">This secure link lets you create your login credentials.</p>
           <p style="font-size:13px;color:#555;">${fallbackLoginHtml}</p>
           <p style="margin-top:24px;">Inside the dashboard you can review hosting details*, track website analytics, see monthly maintenance activity*, request updates, and manage support conversations in one place.</p>
-          <p>If you need any help, just reply to this email or message us from within the dashboard.</p>
           <p style="margin-top:24px;">— The Glorious Agency Support Team</p>
           <p style="font-size:12px;color:#555;margin-top:16px;">
             *Feature availability depends on your active hosting or maintenance subscription with The Glorious Agency.
