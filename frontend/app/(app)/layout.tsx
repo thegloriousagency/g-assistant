@@ -110,7 +110,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     <span className="hidden lg:inline">Hi, {user.email}</span>
                     <span className="lg:hidden">Menu</span>
                     <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                  </Button>
+              </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="text-xs text-muted-foreground">
@@ -228,7 +228,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   icon={Ticket}
                   badge={
                     hasUnreadAdminTickets ? (
-                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-destructive" />
+                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-destructive" />
                     ) : undefined
                   }
                 />

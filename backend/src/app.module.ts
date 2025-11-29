@@ -14,6 +14,7 @@ import { TicketsModule } from './tickets/tickets.module';
 import { Ga4Module } from './ga4/ga4.module';
 import { EmailModule } from './email/email.module';
 import { HostingModule } from './hosting/hosting.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { HostingModule } from './hosting/hosting.module';
     Ga4Module,
     EmailModule,
     HostingModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -807,6 +808,8 @@ export default function CalendarPage() {
     handleEdit(occ);
   };
 
+
+
   if (!wpConfigured) {
     return (
       <div className="p-4">
@@ -823,6 +826,9 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Calendar</h2>
         <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/calendar/import">Import from Image</Link>
+          </Button>
           <Button onClick={() => handleCreate(dateRange.start)}>Add Event</Button>
           <Button variant="outline" onClick={() => refetch()} disabled={isLoading || isFetching}>
             {isFetching ? "Refreshing..." : "Refresh"}
@@ -853,6 +859,7 @@ export default function CalendarPage() {
           onEditEvent={handleEditFromCalendar}
         />
       )}
+
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] w-[95vw] max-w-5xl overflow-y-auto">

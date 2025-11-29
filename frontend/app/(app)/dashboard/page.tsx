@@ -206,11 +206,11 @@ export default function DashboardPage() {
                 : "Service not ordered"}
         </p>
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {shouldShowRenew && renewHref && renewCopy && (
-            <Button type="button" size="sm" variant="outline" asChild>
-              <a href={renewHref}>{renewCopy}</a>
-            </Button>
-          )}
+        {shouldShowRenew && renewHref && renewCopy && (
+          <Button type="button" size="sm" variant="outline" asChild>
+            <a href={renewHref}>{renewCopy}</a>
+          </Button>
+        )}
           <Link
             href={detailHref}
             className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
@@ -241,11 +241,11 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <section className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Service status</h2>
-              <p className="text-sm text-muted-foreground">
-                Track hosting and maintenance timelines.
-              </p>
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-foreground">Service status</h2>
+            <p className="text-sm text-muted-foreground">
+              Track hosting and maintenance timelines.
+            </p>
             </div>
             <div className="text-sm text-muted-foreground">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Website</p>

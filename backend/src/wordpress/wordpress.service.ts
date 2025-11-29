@@ -39,12 +39,12 @@ export class WordpressService {
 
     const data = await this.wordpressFetch<
       Array<{
-        id: number;
-        title: { rendered: string };
-        slug: string;
-        status: string;
-        date: string;
-        modified: string;
+      id: number;
+      title: { rendered: string };
+      slug: string;
+      status: string;
+      date: string;
+      modified: string;
       }>
     >(config, endpoint);
 

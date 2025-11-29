@@ -1374,11 +1374,11 @@ export default function TenantDetailPage() {
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onSelect={() => {
-                                setUserToDelete(user);
-                                setDeleteUserError(null);
-                                setIsDeleteUserDialogOpen(true);
-                              }}
-                            >
+                            setUserToDelete(user);
+                            setDeleteUserError(null);
+                            setIsDeleteUserDialogOpen(true);
+                          }}
+                        >
                               Delete user
                             </DropdownMenuItem>
                           </DropdownMenuContent>
